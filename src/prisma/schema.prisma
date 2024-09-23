@@ -8,7 +8,118 @@ generator client {
   provider = "prisma-client-js"
 }
 
-datasource db {
-  provider = "postgresql"
-  url      = env("DATABASE_URL")
+  datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+  }
+
+model City {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
+  airports  Airport[]
+
+  @@map("Cities")
+}
+
+model Airport {
+  id         Int      @id @default(autoincrement())
+  name       String   @unique
+  code       String   @unique
+  address    String?  @unique
+  cityId     Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  city       City     @relation(fields: [cityId], references: [id], onDelete: Cascade)
+  arrivals   Flight[] @relation("ArrivalAirport")
+  departures Flight[] @relation("DepartureAirport")
+
+  @@map("Airports")
+}
+
+model Airplane {
+  id          Int      @id @default(autoincrement())
+  modelnumber String
+  capacity    Int
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  flights     Flight[]
+  seats       Seat[]
+
+  @@map("Airplanes")
+}
+
+model Flight {
+  id                 Int      @id @default(autoincrement())
+  flightNumber       String
+  airplaneId         Int
+  departureAirportId String
+  arrivalAirportId   String
+  arrivalTime        DateTime
+  departureTime      DateTime
+  price              Int
+  boardingGate       String?
+  totalSeats         Int
+  createdAt          DateTime @default(now())
+  updatedAt          DateTime @updatedAt
+  airplane           Airplane @relation(fields: [airplaneId], references: [id], onDelete: Cascade)
+  arrivalAirport     Airport  @relation("ArrivalAirport", fields: [arrivalAirportId], references: [code], onDelete: Cascade)
+  departureAirport   Airport  @relation("DepartureAirport", fields: [departureAirportId], references: [code], onDelete: Cascade)
+  Seats              Seat[]   @relation("FlightToSeat")
+
+  @@map("Flights")
+  Booking Booking[]
+}
+
+model Seat {
+  id         Int      @id @default(autoincrement())
+  airplaneId Int
+  row        Int
+  col        String
+  type       SeatType @default(ECONOMY)
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+  airplane   Airplane @relation(fields: [airplaneId], references: [id], onDelete: Cascade)
+  Flights    Flight[] @relation("FlightToSeat")
+
+  @@map("Seats")
+}
+
+enum SeatType {
+  BUSINESS
+  ECONOMY
+  PREMIUM_ECONOMY
+  FIRST_CLASS
+}
+
+
+model Booking {
+  id         Int      @id @default(autoincrement())
+  flightId   Int
+  userId     Int
+  status     BookingStatus @default(INITIATED)
+  noOfSeats  Int      @default(1)
+  totalCost  Int
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  Flight     Flight   @relation(fields: [flightId], references: [id])
+  User       User     @relation(fields: [userId], references: [id])
+}
+
+
+model User {
+  id                  Int       @id @default(autoincrement())
+  name                String
+  email               String    @unique
+  password            String
+  bookings            Booking[]
+}
+
+enum BookingStatus {
+  BOOKED
+  CANCELLED
+  INITIATED
+  PENDING
 }

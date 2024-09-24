@@ -7,62 +7,55 @@ const {Enums} = require('../utils/common');
 const { CANCELLED, BOOKED } = Enums.BOOKING_STATUS;
 
 
-class BookingRepository extends CrudRepository {
-    constructor() {
-        super(Booking);
-    }
-
-
-    async createBooking(data) {
-        
+class BookingRepository {
+    async createBooking(data, transaction) {
         const response = await prisma.booking.create({
-            data: data
+            data,
+            ...(transaction && { transaction })
         });
         return response;
     }
-    
 
-    async get(id, transaction) {
-        const response = await transaction.booking.findUnique({
-            where: {
-                id: id
-            }
-        });
-        if (!response) {
-            throw new AppError('Not able to find the resource', StatusCodes.NOT_FOUND);
+    async createBooking(data, transaction) {
+        const response = await Booking.create(data, {transaction: transaction});
+        return response;
+    } 
+
+    async get(data, transaction) {
+        const response = await Booking.findByPk(data, {transaction: transaction});
+        if(!response) {
+            throw new AppError('Not able to fund the resource', StatusCodes.NOT_FOUND);
         }
         return response;
     }
 
-    async update(id, data, transaction) {
-        const response = await transaction.booking.update({
+    async update(id, data, transaction) { // data -> {col: value, ....}
+        const response = await Booking.update(data, {
             where: {
                 id: id
-            },
-            data: data
-        });
+            }
+        }, {transaction: transaction});
         return response;
     }
 
-    async cancelOldBookings(timestamp, transaction) {
-        const response = await transaction.booking.updateMany({
+
+    async cancelOldBookings(timestamp) {
+        // Bookings created before this time will be considered for cancellation.
+        const response = await prisma.booking.updateMany({
             where: {
-                AND: [
-                    {
-                        createdAt: {
-                            lt: timestamp
-                        }
-                    },
-                    {
-                        status: {
-                            notIn: ['BOOKED', 'CANCELLED']
-                        }
+
+                //where filters the record which are created before the timestamp and are not BOOKED or CANCELLED
+                createdAt: { lt: timestamp },
+                //excluding  BOOKED and CANCELLED status
+                NOT: {
+                    status: {
+                        in: ['BOOKED', 'CANCELLED']
                     }
-                ]
+                }
             },
-            data: {
-                status: 'CANCELLED'
-            }
+
+            //update the status of the filtered records to CANCELLED
+            data: { status: 'CANCELLED' }
         });
         return response;
     }
